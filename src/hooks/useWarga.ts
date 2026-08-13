@@ -8,6 +8,19 @@ export interface ProfileWithHouse extends Profile {
   house: Pick<House, 'id' | 'blok_rumah' | 'no_rumah' | 'status_tinggal'> | null
 }
 
+/**
+ * PostgREST mengembalikan embed `house` sebagai array (karena profile_id
+ * tidak UNIQUE di houses). Normalisasi ke satu objek (atau null).
+ */
+function collapseHouse<T extends { house?: unknown }>(
+  row: T
+): T & {
+  house: Pick<House, 'id' | 'blok_rumah' | 'no_rumah' | 'status_tinggal'> | null
+} {
+  const h = Array.isArray(row.house) ? row.house[0] : (row.house ?? null)
+  return { ...row, house: (h as ProfileWithHouse['house']) ?? null }
+}
+
 export interface WargaFilters {
   search?: string
   blokRumah?: string
@@ -63,7 +76,7 @@ export function useWargaList(filters: WargaFilters = {}) {
 
       if (error) throw new Error(error.message)
 
-      let result = (data ?? []) as ProfileWithHouse[]
+      let result = ((data ?? []) as ProfileWithHouse[]).map(collapseHouse)
 
       // Filter blok rumah (client-side karena nested relation)
       if (filters.blokRumah) {
@@ -103,7 +116,7 @@ export function useWargaDetail(profileId: string | null) {
         .single()
 
       if (error) throw new Error(error.message)
-      return data as ProfileWithHouse
+      return collapseHouse(data as ProfileWithHouse)
     },
     enabled: !!profileId,
   })
@@ -247,23 +260,50 @@ export function useUpdateWargaHouse() {
   return useMutation({
     mutationFn: async ({
       profileId,
-      houseId,
+      oldHouseId,
       blokRumah,
       noRumah,
       statusTinggal,
     }: {
       profileId: string
-      houseId: string
+      oldHouseId?: string | null
       blokRumah: string
       noRumah: string
       statusTinggal: 'tetap' | 'kontrak'
     }) => {
-      const { error } = await supabase
-        .from('houses')
-        .update({ blok_rumah: blokRumah, no_rumah: noRumah, status_tinggal: statusTinggal })
-        .eq('id', houseId)
+      // 1. Lepas rumah lama milik warga (jika ada)
+      if (oldHouseId) {
+        const { error: clearError } = await supabase
+          .from('houses')
+          .update({ profile_id: null })
+          .eq('id', oldHouseId)
+        if (clearError) throw new Error(clearError.message)
+      }
 
-      if (error) throw new Error(error.message)
+      // 2. Cari rumah target (blok + no)
+      const { data: existing, error: findError } = await supabase
+        .from('houses')
+        .select('id')
+        .eq('blok_rumah', blokRumah)
+        .eq('no_rumah', noRumah)
+        .maybeSingle()
+      if (findError) throw new Error(findError.message)
+
+      if (existing) {
+        const { error } = await supabase
+          .from('houses')
+          .update({ profile_id: profileId, status_tinggal: statusTinggal })
+          .eq('id', existing.id)
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await supabase.from('houses').insert({
+          blok_rumah: blokRumah,
+          no_rumah: noRumah,
+          status_tinggal: statusTinggal,
+          profile_id: profileId,
+        })
+        if (error) throw new Error(error.message)
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: wargaKeys.all })

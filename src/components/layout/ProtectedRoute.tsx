@@ -61,6 +61,11 @@ export default function ProtectedRoute({
     return <Navigate to="/rejected" replace />
   }
 
+  // b. Status warga 'pindah' → halaman pindah (akun non-aktif)
+  if (profile.status_warga === 'pindah') {
+    return <Navigate to="/pindah" replace />
+  }
+
   // c. Cek role jika halaman butuh role khusus
   if (allowedRoles && allowedRoles.length > 0) {
     if (!hasRole(profile.role, allowedRoles)) {

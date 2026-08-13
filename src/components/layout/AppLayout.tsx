@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard,
   Wallet,
@@ -11,6 +12,7 @@ import {
   UserCheck,
   FolderOpen,
   Megaphone,
+  Settings,
   Menu,
   X,
   LogOut,
@@ -51,6 +53,7 @@ interface MenuItem {
   label: string
   icon: ReactNode
   roles?: Role[] // kosong = semua role aktif
+  badgeKey?: 'verifikasi' | 'iuran' | 'surat'
 }
 
 interface MenuSection {
@@ -66,8 +69,10 @@ const MENU_SECTIONS: MenuSection[] = [
     title: 'Utama',
     items: [
       { to: '/', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-      { to: '/cashflow', label: 'Cashflow Transparan', icon: <Wallet className="w-4 h-4" /> },
+      { to: '/cashflow/warga', label: 'Cashflow Warga', icon: <Wallet className="w-4 h-4" /> },
+      { to: '/cashflow/public', label: 'Cashflow RT', icon: <Wallet className="w-4 h-4" /> },
       { to: '/cctv', label: 'Pantau CCTV', icon: <Cctv className="w-4 h-4" /> },
+      { to: '/bayar-iuran', label: 'Bayar Iuran', icon: <BadgeCheck className="w-4 h-4" /> },
       { to: '/surat', label: 'Request Surat', icon: <FileText className="w-4 h-4" /> },
       { to: '/profile', label: 'Profil Saya', icon: <UserRound className="w-4 h-4" /> },
       { to: '/threads', label: 'Thread Warga', icon: <MessageSquare className="w-4 h-4" /> },
@@ -77,8 +82,9 @@ const MENU_SECTIONS: MenuSection[] = [
     title: 'Keuangan',
     roles: ['bendahara', 'ketua_rt'],
     items: [
-      { to: '/bendahara/iuran', label: 'Review Pembayaran Iuran', icon: <BadgeCheck className="w-4 h-4" /> },
+      { to: '/bendahara/iuran', label: 'Review Pembayaran Iuran', icon: <BadgeCheck className="w-4 h-4" />, badgeKey: 'iuran' },
       { to: '/kas', label: 'Kelola Kas', icon: <Landmark className="w-4 h-4" /> },
+      { to: '/konfigurasi', label: 'Konfigurasi', icon: <Settings className="w-4 h-4" /> },
     ],
   },
   {
@@ -86,15 +92,15 @@ const MENU_SECTIONS: MenuSection[] = [
     roles: ['sekretaris', 'ketua_rt'],
     items: [
       { to: '/admin/warga', label: 'Master Data Warga', icon: <Users className="w-4 h-4" /> },
-      { to: '/admin/verifikasi', label: 'Verifikasi Warga Baru', icon: <UserCheck className="w-4 h-4" /> },
-      { to: '/admin/surat', label: 'CMS Surat Menyurat', icon: <FolderOpen className="w-4 h-4" /> },
+      { to: '/admin/verifikasi', label: 'Verifikasi Warga Baru', icon: <UserCheck className="w-4 h-4" />, badgeKey: 'verifikasi' },
+      { to: '/admin/surat', label: 'Surat Menyurat', icon: <FolderOpen className="w-4 h-4" />, badgeKey: 'surat' },
     ],
   },
   {
     title: 'Komunikasi',
     roles: ['humas', 'ketua_rt'],
     items: [
-      { to: '/humas/pengumuman', label: 'Kelola Pengumuman & Flyer AI', icon: <Megaphone className="w-4 h-4" /> },
+      { to: '/humas/pengumuman', label: 'Kelola Pengumuman', icon: <Megaphone className="w-4 h-4" /> },
     ],
   },
 ]
@@ -102,6 +108,65 @@ const MENU_SECTIONS: MenuSection[] = [
 function canAccess(role: Role | undefined, roles?: Role[]): boolean {
   if (!role) return false
   return roles ? roles.includes(role) : ALL_ROLES.includes(role)
+}
+
+// ─── Badge count untuk menu ───────────────────────────────────────────────────
+
+export interface MenuBadges {
+  verifikasi: number
+  iuran: number
+  surat: number
+}
+
+async function fetchCount(
+  table: 'profiles' | 'contributions' | 'letters',
+  column: string,
+  value: string
+): Promise<number> {
+  const { count, error } = await supabase
+    .from(table)
+    .select('*', { count: 'exact', head: true })
+    .eq(column, value)
+  if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
+/**
+ * Ambil jumlah item "pending" untuk badge sidebar.
+ * Hanya query tabel yang relevan sesuai role pengguna.
+ */
+function useMenuBadgeCounts(role: Role | undefined): MenuBadges {
+  const adminRoles = ['sekretaris', 'ketua_rt']
+  const bendaharaRoles = ['bendahara', 'ketua_rt']
+  const isAdmin = role ? adminRoles.includes(role) : false
+  const isBendahara = role ? bendaharaRoles.includes(role) : false
+
+  const verifikasi = useQuery({
+    queryKey: ['menu-badges', 'verifikasi'],
+    queryFn: () => fetchCount('profiles', 'status_warga', 'pending'),
+    enabled: isAdmin,
+    staleTime: 1000 * 30,
+  })
+
+  const surat = useQuery({
+    queryKey: ['menu-badges', 'surat'],
+    queryFn: () => fetchCount('letters', 'status', 'pending'),
+    enabled: isAdmin,
+    staleTime: 1000 * 30,
+  })
+
+  const iuran = useQuery({
+    queryKey: ['menu-badges', 'iuran'],
+    queryFn: () => fetchCount('contributions', 'status_pembayaran', 'pending'),
+    enabled: isBendahara,
+    staleTime: 1000 * 30,
+  })
+
+  return {
+    verifikasi: verifikasi.data ?? 0,
+    iuran: iuran.data ?? 0,
+    surat: surat.data ?? 0,
+  }
 }
 
 // ─── Sidebar content ──────────────────────────────────────────────────────────
@@ -125,9 +190,11 @@ function Brand({ compact = false }: { compact?: boolean }) {
 function SidebarNav({
   role,
   onNavigate,
+  badges,
 }: {
   role: Role | undefined
   onNavigate?: () => void
+  badges: MenuBadges
 }) {
   return (
     <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-5 min-h-0">
@@ -165,6 +232,11 @@ function SidebarNav({
                       />
                       <span className="shrink-0">{item.icon}</span>
                       <span className="truncate">{item.label}</span>
+                      {item.badgeKey && badges[item.badgeKey] > 0 && (
+                        <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold leading-none">
+                          {badges[item.badgeKey] > 99 ? '99+' : badges[item.badgeKey]}
+                        </span>
+                      )}
                     </>
                   )}
                 </NavLink>
@@ -181,10 +253,12 @@ function SidebarShell({
   role,
   onNavigate,
   closeButton,
+  badges,
 }: {
   role: Role | undefined
   onNavigate?: () => void
   closeButton?: React.ReactNode
+  badges: MenuBadges
 }) {
   return (
     <div className="flex flex-col h-full">
@@ -195,7 +269,7 @@ function SidebarShell({
       </div>
 
       {/* Nav */}
-      <SidebarNav role={role} onNavigate={onNavigate} />
+      <SidebarNav role={role} onNavigate={onNavigate} badges={badges} />
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-slate-200 shrink-0">
@@ -215,6 +289,7 @@ export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const badges = useMenuBadgeCounts(profile?.role)
 
   // Tutup drawer saat pindah halaman (mobile)
   useEffect(() => {
@@ -242,7 +317,7 @@ export default function AppLayout() {
     <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-clip">
       {/* ── Sidebar Desktop ── */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 border-r border-slate-200 bg-white z-40">
-        <SidebarShell role={profile?.role} />
+        <SidebarShell role={profile?.role} badges={badges} />
       </aside>
 
       {/* ── Sidebar Mobile (drawer) ── */}
@@ -256,6 +331,7 @@ export default function AppLayout() {
             <SidebarShell
               role={profile?.role}
               onNavigate={() => setSidebarOpen(false)}
+              badges={badges}
               closeButton={
                 <button
                   onClick={() => setSidebarOpen(false)}

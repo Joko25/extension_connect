@@ -9,6 +9,7 @@ export const iuranKeys = {
   mine: (profileId: string) => [...iuranKeys.all, 'mine', profileId] as const,
   pending: () => [...iuranKeys.all, 'pending'] as const,
   all_list: () => [...iuranKeys.all, 'list'] as const,
+  byYear: (year: number) => [...iuranKeys.all, 'year', year] as const,
   proofUrl: (path: string) => [...iuranKeys.all, 'proof-url', path] as const,
 }
 
@@ -104,6 +105,29 @@ export function useAllContributions() {
 
       if (error) throw new Error(error.message)
       return (data ?? []) as ContributionWithProfile[]
+    },
+    staleTime: 1000 * 30,
+  })
+}
+
+/**
+ * Semua iuran dalam satu tahun berjalan (untuk matrix Cashflow Warga)
+ */
+export function useContributionsByYear(year: number) {
+  return useQuery({
+    queryKey: iuranKeys.byYear(year),
+    queryFn: async (): Promise<Contribution[]> => {
+      const start = `${year}-01`
+      const end = `${year}-12`
+      const { data, error } = await supabase
+        .from('contributions')
+        .select('*')
+        .gte('bulan_tahun', start)
+        .lte('bulan_tahun', end)
+        .order('bulan_tahun', { ascending: true })
+
+      if (error) throw new Error(error.message)
+      return (data ?? []) as Contribution[]
     },
     staleTime: 1000 * 30,
   })

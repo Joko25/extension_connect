@@ -260,6 +260,11 @@ export default function Daftar() {
         await uploadDocs(session.user.id, ktpFile, kkFile)
       } catch (e) {
         console.warn('Gagal upload dokumen:', e)
+        toast({
+          title: 'Gagal mengunggah dokumen',
+          description: 'Dokumen identitas tidak terunggah. Silakan coba lagi atau hubungi pengurus RT.',
+          variant: 'destructive',
+        })
       }
 
       // Tautkan blok rumah
@@ -599,7 +604,7 @@ export default function Daftar() {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-          © {new Date().getFullYear()} Portal RT · Powered by Supabase
+          © {new Date().getFullYear()} Portal RT · Powered by Warga Extension
         </p>
       </div>
     </div>

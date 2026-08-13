@@ -62,10 +62,18 @@ export function useCashflowSummary() {
       if (error) throw new Error(error.message)
       const list = (data ?? []) as Cashflow[]
 
+      // Saldo awal kas (setup kas yang sudah berjalan)
+      const { data: saldoRes } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'saldo_awal')
+        .maybeSingle()
+      const saldoAwal = Number(saldoRes?.value) || 0
+
       const now = new Date()
       const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-      let totalKas = 0
+      let totalKas = saldoAwal
       let pemasukanBulanIni = 0
       let pengeluaranBulanIni = 0
 

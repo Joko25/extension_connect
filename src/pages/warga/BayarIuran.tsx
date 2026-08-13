@@ -2,10 +2,10 @@ import { useState, useRef } from 'react'
 import { UploadCloud, CheckCircle2, Clock, XCircle, FileText, Loader2, ArrowLeft, Image as ImageIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useMyContributions, useSubmitIuran, useProofSignedUrl } from '@/hooks/useIuran'
+import { useIuranRekening } from '@/hooks/useSettings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -67,6 +67,7 @@ export default function BayarIuran() {
 
   const { data: history = [], isLoading } = useMyContributions(profile?.id)
   const submitIuran = useSubmitIuran()
+  const rekening = useIuranRekening()
 
   const handleFileChange = (selectedFile: File | null) => {
     if (!selectedFile) return
@@ -163,7 +164,27 @@ export default function BayarIuran() {
 
       <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Card */}
-        <div className="lg:col-span-1 bg-white/60 border border-slate-200 rounded-2xl p-6 h-fit space-y-6">
+        <div className="lg:col-span-1 space-y-6">
+          {/* Rekening Tujuan Pembayaran */}
+          {rekening.nomor && (
+            <div className="bg-gradient-to-br from-blue-600 to-blue-500 rounded-2xl p-5 text-white shadow-lg shadow-blue-600/25">
+              <p className="text-blue-100 text-xs font-semibold uppercase tracking-wider">
+                Transfer Pembayaran Iuran
+              </p>
+              <div className="mt-3 space-y-1">
+                <p className="text-white/80 text-xs">{rekening.bank || 'Rekening Bank'}</p>
+                <p className="text-2xl font-bold font-mono tracking-wide">{rekening.nomor}</p>
+                {rekening.atas_nama && (
+                  <p className="text-blue-100 text-xs mt-1">a.n. {rekening.atas_nama}</p>
+                )}
+              </div>
+              <p className="text-blue-100/70 text-[11px] mt-3">
+                Transfer ke nomor di atas lalu unggah bukti pembayaran.
+              </p>
+            </div>
+          )}
+
+          <div className="bg-white/60 border border-slate-200 rounded-2xl p-6 space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Form Bayar Iuran</h2>
             <p className="text-slate-500 text-xs mt-0.5">Isi detail pembayaran dan bukti transfer</p>
@@ -269,6 +290,7 @@ export default function BayarIuran() {
               )}
             </Button>
           </form>
+        </div>
         </div>
 
         {/* History Table Card */}

@@ -1,5 +1,5 @@
 export type Role = 'warga' | 'bendahara' | 'sekretaris' | 'humas' | 'ketua_rt'
-export type StatusWarga = 'pending' | 'aktif' | 'menolak'
+export type StatusWarga = 'pending' | 'aktif' | 'menolak' | 'pindah'
 export type StatusTinggal = 'tetap' | 'kontrak'
 export type StatusPembayaran = 'pending' | 'approved' | 'rejected'
 export type StatusSurat = 'pending' | 'approved' | 'rejected'
@@ -100,6 +100,26 @@ export interface LetterWithProfile extends Letter {
 
 export interface ThreadWithAuthor extends Thread {
   author: Pick<Profile, 'nama_lengkap' | 'no_hp'>
+  likes: ThreadLike[] | null
+  comments: ThreadCommentWithAuthor[] | null
+}
+
+export interface ThreadLike {
+  thread_id: string
+  profile_id: string
+  created_at: string
+}
+
+export interface ThreadComment {
+  id: string
+  thread_id: string
+  author_id: string
+  konten: string
+  created_at: string
+}
+
+export interface ThreadCommentWithAuthor extends ThreadComment {
+  author: Pick<Profile, 'nama_lengkap'> | null
 }
 
 export interface HouseWithProfile extends House {

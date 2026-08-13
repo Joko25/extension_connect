@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Search, MoreHorizontal, Eye, Shield, Home, UserMinus, Loader2, ExternalLink, User, UserPlus, Users, Home as HomeIcon, CheckCircle2, Clock } from 'lucide-react'
+import { Search, MoreHorizontal, Eye, Shield, Home, UserMinus, Loader2, ExternalLink, User, UserPlus, Users, Home as HomeIcon, CheckCircle2, Clock, MoveRight } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -354,11 +354,11 @@ function ModalEditRumah({
   const statusTinggal = watch('status_tinggal')
 
   async function onSubmit(data: HouseFormData) {
-    if (!warga?.house) return
+    if (!warga) return
     try {
       await updateHouse.mutateAsync({
         profileId: warga.id,
-        houseId: warga.house.id,
+        oldHouseId: warga.house?.id ?? null,
         blokRumah: data.blok_rumah.toUpperCase(),
         noRumah: data.no_rumah,
         statusTinggal: data.status_tinggal,
@@ -367,7 +367,11 @@ function ModalEditRumah({
       onClose()
       reset()
     } catch (err) {
-      toast({ title: 'Gagal memperbarui data rumah', variant: 'destructive' })
+      toast({
+        title: 'Gagal memperbarui data rumah',
+        description: err instanceof Error ? err.message : 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -466,12 +470,19 @@ function ModalSetNonAktif({
   onClose: () => void
 }) {
   const updateStatus = useUpdateWargaStatus()
+  const [mode, setMode] = useState<'menolak' | 'pindah'>('menolak')
 
   async function handleConfirm() {
     if (!warga) return
     try {
-      await updateStatus.mutateAsync({ profileId: warga.id, status: 'menolak' })
-      toast({ title: 'Warga dinonaktifkan', description: `${warga.nama_lengkap} tidak lagi tercatat sebagai warga aktif` })
+      await updateStatus.mutateAsync({ profileId: warga.id, status: mode })
+      toast({
+        title: mode === 'pindah' ? 'Status warga diubah ke Pindah' : 'Warga dinonaktifkan',
+        description:
+          mode === 'pindah'
+            ? `${warga.nama_lengkap} ditandai sebagai warga yang pindah`
+            : `${warga.nama_lengkap} tidak lagi tercatat sebagai warga aktif`,
+      })
       onClose()
     } catch {
       toast({ title: 'Gagal mengubah status', variant: 'destructive' })
@@ -486,7 +497,7 @@ function ModalSetNonAktif({
         <DialogHeader>
           <DialogTitle className="text-slate-900">Set Non-Aktif / Pindah</DialogTitle>
           <DialogDescription className="text-slate-500">
-            Warga yang dinonaktifkan tidak bisa lagi mengakses portal RT
+            Pilih status baru untuk warga ini
           </DialogDescription>
         </DialogHeader>
 
@@ -500,10 +511,37 @@ function ModalSetNonAktif({
           )}
         </div>
 
-        <p className="text-slate-600 text-sm">
-          Tindakan ini akan mengubah status warga menjadi <span className="text-red-600 font-medium">non-aktif</span>. 
-          Akun mereka tidak akan dihapus dan dapat diaktifkan kembali oleh pengurus RT.
-        </p>
+        {/* Pilihan status */}
+        <div className="space-y-2 my-1">
+          <button
+            type="button"
+            onClick={() => setMode('menolak')}
+            className={`w-full text-left p-3 rounded-xl border transition-all ${
+              mode === 'menolak'
+                ? 'border-red-500/50 bg-red-500/10'
+                : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+            }`}
+          >
+            <p className="text-sm font-medium text-slate-900">Non-Aktif</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Warga tidak bisa mengakses portal, namun masih tercatat di RT
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('pindah')}
+            className={`w-full text-left p-3 rounded-xl border transition-all ${
+              mode === 'pindah'
+                ? 'border-slate-500/50 bg-slate-100'
+                : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+            }`}
+          >
+            <p className="text-sm font-medium text-slate-900">Pindah</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Warga telah pindah keluar dari lingkungan RT
+            </p>
+          </button>
+        </div>
 
         <DialogFooter className="gap-2">
           <Button
@@ -521,7 +559,7 @@ function ModalSetNonAktif({
             className="bg-red-600 hover:bg-red-500"
           >
             {updateStatus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Konfirmasi Non-Aktif
+            {mode === 'pindah' ? 'Konfirmasi Pindah' : 'Konfirmasi Non-Aktif'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1035,19 +1073,25 @@ export default function MasterDataWarga() {
                               ? 'border-green-500/30 text-green-600 bg-green-500/10'
                               : warga.status_warga === 'pending'
                                 ? 'border-amber-500/30 text-amber-600 bg-amber-500/10'
-                                : 'border-red-500/30 text-red-600 bg-red-500/10'
+                                : warga.status_warga === 'pindah'
+                                  ? 'border-slate-500/30 text-slate-600 bg-slate-500/10'
+                                  : 'border-red-500/30 text-red-600 bg-red-500/10'
                           }
                         >
                           {warga.status_warga === 'aktif'
                             ? <CheckCircle2 className="w-3 h-3 mr-1" />
                             : warga.status_warga === 'pending'
                               ? <Clock className="w-3 h-3 mr-1" />
-                              : null}
+                              : warga.status_warga === 'pindah'
+                                ? <MoveRight className="w-3 h-3 mr-1" />
+                                : null}
                           {warga.status_warga === 'aktif'
                             ? 'Aktif'
                             : warga.status_warga === 'pending'
                               ? 'Pending'
-                              : 'Menolak'}
+                              : warga.status_warga === 'pindah'
+                                ? 'Pindah'
+                                : 'Non-Aktif'}
                         </Badge>
                       </TableCell>
 

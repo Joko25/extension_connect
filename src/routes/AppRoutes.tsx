@@ -3,19 +3,22 @@ import Login from '@/pages/Login'
 import Daftar from '@/pages/Daftar'
 import StatusPage from '@/pages/StatusPage'
 import Dashboard from '@/pages/Dashboard'
-import CashflowPublic from '@/pages/CashflowPublic'
+import CashflowWarga from '@/pages/CashflowWarga'
 import CCTV from '@/pages/CCTV'
 import RequestSurat from '@/pages/RequestSurat'
+import BayarIuran from '@/pages/warga/BayarIuran'
 import Profile from '@/pages/Profile'
 import Threads from '@/pages/warga/Threads'
 import ReviewIuran from '@/pages/bendahara/ReviewIuran'
 import KelolaKas from '@/pages/bendahara/KelolaKas'
+import Konfigurasi from '@/pages/bendahara/Konfigurasi'
 import MasterDataWarga from '@/pages/admin/MasterDataWarga'
 import VerifikasiWarga from '@/pages/admin/VerifikasiWarga'
 import SuratMenyurat from '@/pages/admin/SuratMenyurat'
 import BuatPengumuman from '@/pages/humas/BuatPengumuman'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
+import CashflowPublic from '@/pages/CashflowPublic'
 
 function Unauthorized() {
   return (
@@ -42,18 +45,22 @@ export default function AppRoutes() {
       <Route path="/daftar" element={<Daftar />} />
       <Route path="/pending-approval" element={<StatusPage type="pending" />} />
       <Route path="/rejected" element={<StatusPage type="ditolak" />} />
+      <Route path="/pindah" element={<StatusPage type="pindah" />} />
       {/* Path lama (backward compat) */}
       <Route path="/status/pending" element={<StatusPage type="pending" />} />
       <Route path="/status/ditolak" element={<StatusPage type="ditolak" />} />
+      <Route path="/status/pindah" element={<StatusPage type="pindah" />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
       {/* ─── Protected: dibungkus AppLayout (auth + status warga) ─── */}
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         {/* Semua role aktif */}
         <Route path="/" element={<Dashboard />} />
-        <Route path="/cashflow" element={<CashflowPublic />} />
+        <Route path="/cashflow/warga" element={<CashflowWarga />} />
+        <Route path="/cashflow/public" element={<CashflowPublic />} />
         <Route path="/cctv" element={<CCTV />} />
         <Route path="/surat" element={<RequestSurat />} />
+        <Route path="/bayar-iuran" element={<BayarIuran />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/threads" element={<Threads />} />
 
@@ -71,6 +78,14 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['bendahara', 'ketua_rt']}>
               <KelolaKas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/konfigurasi"
+          element={
+            <ProtectedRoute allowedRoles={['bendahara', 'ketua_rt']}>
+              <Konfigurasi />
             </ProtectedRoute>
           }
         />

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, Home, Loader2, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { usePublicPerumahan } from '@/hooks/useSettings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,6 +23,7 @@ export default function Login() {
   const { signInWithEmail, profile } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
+  const { data: perumahan } = usePublicPerumahan()
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/dashboard'
 
@@ -73,8 +75,12 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-4 backdrop-blur-sm">
               <Home className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Portal RT</h1>
-            <p className="text-blue-100 text-sm mt-1">Manajemen Rukun Tetangga Digital</p>
+            <h1 className="text-2xl font-bold text-white">
+              {perumahan?.nama || 'Portal RT'}
+            </h1>
+            <p className="text-blue-100 text-sm mt-1">
+              {perumahan?.nama ? perumahan.alamat : 'Manajemen Rukun Tetangga Digital'}
+            </p>
           </div>
 
           {/* Form */}
@@ -177,7 +183,7 @@ export default function Login() {
 
         {/* Footer */}
         <p className="text-center text-slate-500 text-xs mt-6">
-          © {new Date().getFullYear()} Portal RT · Powered by Supabase
+          © {new Date().getFullYear()} Portal RT · Powered by Warga Extension
         </p>
       </div>
     </div>

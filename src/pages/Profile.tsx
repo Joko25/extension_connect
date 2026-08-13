@@ -1,16 +1,22 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, Save, User, Phone, Hash, IdCard, BadgeCheck, Shield, Clock } from 'lucide-react'
+import {
+  Loader2, Save, User, Phone, Hash, IdCard, BadgeCheck, Shield, Clock,
+  UploadCloud, FileText, CheckCircle2, ExternalLink,
+} from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { useUpdateProfile } from '@/hooks/useWarga'
+import { useUpdateProfile, useSignedUrl } from '@/hooks/useWarga'
 import { toast } from '@/hooks/useToast'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const ROLE_LABELS: Record<string, string> = {
   warga: 'Warga',
@@ -34,6 +40,185 @@ const profileSchema = z.object({
   no_hp: z.string().optional(),
 })
 type ProfileFormData = z.infer<typeof profileSchema>
+
+// ─── Preview dokumen identitas (signed URL) ─────────────────────────────────
+
+function DocPreview({ path, label }: { path: string | null; label: string }) {
+  const { data: url, isLoading } = useSignedUrl('ktp-kk-docs', path)
+
+  if (!path) return null
+  if (isLoading) return <Skeleton className="h-28 w-full bg-slate-100 rounded-lg" />
+
+  if (!url) {
+    return <p className="text-red-600 text-xs">Gagal memuat dokumen</p>
+  }
+
+  const isPdf = path.toLowerCase().endsWith('.pdf')
+  if (isPdf) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+      >
+        <FileText className="w-4 h-4" /> {label} (PDF)
+        <ExternalLink className="w-3.5 h-3.5" />
+      </a>
+    )
+  }
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+      <img
+        src={url}
+        alt={label}
+        className="max-h-36 w-full object-contain rounded-lg border border-slate-200 bg-slate-50 group-hover:opacity-90 transition-opacity"
+      />
+    </a>
+  )
+}
+
+function FilePicker({
+  label,
+  file,
+  onChange,
+}: {
+  label: string
+  file: File | null
+  onChange: (f: File | null) => void
+}) {
+  return (
+    <label
+      className={`flex flex-col items-center justify-center gap-1 border-2 border-dashed rounded-xl px-4 py-4 cursor-pointer text-center transition-colors ${
+        file ? 'border-emerald-300 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'
+      }`}
+    >
+      <UploadCloud className={`w-5 h-5 ${file ? 'text-emerald-600' : 'text-slate-400'}`} />
+      <span className="text-sm text-slate-700 font-medium">
+        {file ? file.name : `Upload ${label}`}
+      </span>
+      <span className="text-xs text-slate-400">
+        {file ? `${(file.size / 1024).toFixed(0)} KB` : 'JPG, PNG, WebP, atau PDF'}
+      </span>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
+    </label>
+  )
+}
+
+// ─── Section: Dokumen Identitas ──────────────────────────────────────────────
+
+function IdentityDocsSection({
+  uid,
+  ktpUrl,
+  kkUrl,
+  onUpdated,
+}: {
+  uid: string
+  ktpUrl: string | null
+  kkUrl: string | null
+  onUpdated: () => void
+}) {
+  const [ktpFile, setKtpFile] = useState<File | null>(null)
+  const [kkFile, setKkFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const hasNew = !!ktpFile || !!kkFile
+  const canSave = hasNew && !uploading
+
+  async function handleSave() {
+    if (!hasNew) return
+    setError(null)
+    setUploading(true)
+    try {
+      const updates: Record<string, string> = {}
+      const uploadOne = async (file: File, type: 'ktp' | 'kk') => {
+        const ext = file.name.split('.').pop()
+        const path = `${uid}/${type}-${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('ktp-kk-docs')
+          .upload(path, file, { upsert: false })
+        if (upErr) throw new Error(`Gagal mengunggah ${type === 'ktp' ? 'KTP' : 'KK'}: ${upErr.message}`)
+        updates[type === 'ktp' ? 'ktp_url' : 'kk_url'] = path
+      }
+      if (ktpFile) await uploadOne(ktpFile, 'ktp')
+      if (kkFile) await uploadOne(kkFile, 'kk')
+      if (Object.keys(updates).length > 0) {
+        const { error: upErr } = await supabase.from('profiles').update(updates).eq('user_id', uid)
+        if (upErr) throw new Error('Gagal menyimpan dokumen ke data warga')
+      }
+      toast({ title: 'Dokumen berhasil diunggah', description: 'Dokumen identitas Anda telah diperbarui.' })
+      setKtpFile(null)
+      setKkFile(null)
+      onUpdated()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal mengunggah dokumen')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
+        <IdCard className="w-4 h-4 text-slate-500" />
+        <h3 className="text-sm font-semibold text-slate-800">Dokumen Identitas</h3>
+      </div>
+
+      <div className="p-6 space-y-5">
+        {/* KTP */}
+        <div>
+          <Label className="text-slate-800 mb-2 block">Kartu Tanda Penduduk (KTP)</Label>
+          {ktpUrl && !ktpFile ? (
+            <div className="space-y-2">
+              <DocPreview path={ktpUrl} label="KTP" />
+              <div className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Sudah diunggah
+              </div>
+            </div>
+          ) : (
+            <FilePicker label="KTP" file={ktpFile} onChange={setKtpFile} />
+          )}
+        </div>
+
+        {/* KK */}
+        <div>
+          <Label className="text-slate-800 mb-2 block">Kartu Keluarga (KK)</Label>
+          {kkUrl && !kkFile ? (
+            <div className="space-y-2">
+              <DocPreview path={kkUrl} label="KK" />
+              <div className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Sudah diunggah
+              </div>
+            </div>
+          ) : (
+            <FilePicker label="Kartu Keluarga" file={kkFile} onChange={setKkFile} />
+          )}
+        </div>
+
+        {error && <p className="text-red-600 text-xs">{error}</p>}
+
+        {canSave && (
+          <Button
+            onClick={handleSave}
+            disabled={uploading}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white"
+          >
+            {uploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Unggah Dokumen
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 export default function Profile() {
   const { profile, refreshProfile } = useAuth()
@@ -126,14 +311,18 @@ export default function Profile() {
                       ? 'border-green-500/30 text-green-600 bg-green-500/10'
                       : profile.status_warga === 'pending'
                         ? 'border-amber-500/30 text-amber-600 bg-amber-500/10'
-                        : 'border-red-500/30 text-red-600 bg-red-500/10'
+                        : profile.status_warga === 'pindah'
+                          ? 'border-slate-500/30 text-slate-600 bg-slate-500/10'
+                          : 'border-red-500/30 text-red-600 bg-red-500/10'
                   }
                 >
                   {profile.status_warga === 'aktif'
                     ? 'Aktif'
                     : profile.status_warga === 'pending'
                       ? 'Pending'
-                      : 'Non-aktif'}
+                      : profile.status_warga === 'pindah'
+                        ? 'Pindah'
+                        : 'Non-aktif'}
                 </Badge>
               </div>
             </div>
@@ -258,6 +447,14 @@ export default function Profile() {
             </div>
           </form>
         </div>
+
+        {/* Dokumen Identitas */}
+        <IdentityDocsSection
+          uid={me.user_id}
+          ktpUrl={me.ktp_url}
+          kkUrl={me.kk_url}
+          onUpdated={refreshProfile}
+        />
       </div>
     </div>
   )

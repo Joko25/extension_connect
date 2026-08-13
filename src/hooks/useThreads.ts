@@ -73,12 +73,32 @@ export function useThreads() {
           author:profiles!threads_author_id_fkey (
             nama_lengkap,
             no_hp
+          ),
+          likes:thread_likes (
+            profile_id
+          ),
+          comments:thread_comments (
+            id,
+            thread_id,
+            author_id,
+            konten,
+            created_at,
+            author:profiles!thread_comments_author_id_fkey (
+              nama_lengkap
+            )
           )
         `)
         .order('created_at', { ascending: false })
 
       if (error) throw new Error(error.message)
-      return (data ?? []) as ThreadWithAuthor[]
+
+      // Normalisasi komentar: kosongkan jika array kosong
+      const normalized = (data ?? []).map((t) => ({
+        ...t,
+        likes: t.likes ?? [],
+        comments: t.comments ?? [],
+      }))
+      return normalized as ThreadWithAuthor[]
     },
     staleTime: 1000 * 20,
   })
@@ -128,8 +148,81 @@ export function useCreateThread() {
 }
 
 /**
- * Hapus thread milik sendiri
+ * Toggle like pada thread (like jika belum, batalkan jika sudah)
  */
+export function useToggleLike() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ threadId, profileId }: { threadId: string; profileId: string }) => {
+      // Cek apakah sudah like
+      const { data: existing } = await supabase
+        .from('thread_likes')
+        .select('thread_id')
+        .eq('thread_id', threadId)
+        .eq('profile_id', profileId)
+        .maybeSingle()
+
+      if (existing) {
+        const { error } = await supabase
+          .from('thread_likes')
+          .delete()
+          .eq('thread_id', threadId)
+          .eq('profile_id', profileId)
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await supabase
+          .from('thread_likes')
+          .insert({ thread_id: threadId, profile_id: profileId })
+        if (error) throw new Error(error.message)
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: threadKeys.all })
+    },
+  })
+}
+
+/**
+ * Tambah komentar pada thread
+ */
+export function useAddComment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      threadId,
+      authorId,
+      konten,
+    }: {
+      threadId: string
+      authorId: string
+      konten: string
+    }) => {
+      const { error } = await supabase
+        .from('thread_comments')
+        .insert({ thread_id: threadId, author_id: authorId, konten })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: threadKeys.all })
+    },
+  })
+}
+
+/**
+ * Hapus komentar milik sendiri
+ */
+export function useDeleteComment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ commentId }: { commentId: string }) => {
+      const { error } = await supabase.from('thread_comments').delete().eq('id', commentId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: threadKeys.all })
+    },
+  })
+}
 export function useDeleteThread() {
   const qc = useQueryClient()
   return useMutation({

@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom'
-import { ClockIcon, XCircle, Home, Phone } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ClockIcon, XCircle, Phone, Home as HomeIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
-type StatusType = 'pending' | 'ditolak'
+type StatusType = 'pending' | 'ditolak' | 'pindah'
 
 interface StatusPageProps {
   type: StatusType
@@ -12,6 +12,7 @@ interface StatusPageProps {
 
 export default function StatusPage({ type }: StatusPageProps) {
   const { profile } = useAuth()
+  const navigate = useNavigate()
 
   const config = {
     pending: {
@@ -43,12 +44,25 @@ export default function StatusPage({ type }: StatusPageProps) {
       steps: null,
       ctaText: 'Hubungi Pengurus RT',
     },
+    pindah: {
+      icon: <HomeIcon className="w-16 h-16 text-slate-500" />,
+      bgGradient: 'from-slate-200 via-slate-50 to-slate-100',
+      iconBg: 'bg-slate-100 border-slate-300',
+      badge: 'bg-slate-500/10 text-slate-700 border-slate-300',
+      badgeText: 'Warga Pindah',
+      title: 'Anda Tidak Tercatat Aktif',
+      description:
+        'Status keanggotaan Anda terdaftar sebagai warga yang telah pindah dari lingkungan RT. Akses ke portal tidak aktif. Silakan hubungi pengurus RT bila Anda masih berdomisili di sini.',
+      steps: null,
+      ctaText: 'Hubungi Pengurus RT',
+    },
   }
 
   const c = config[type]
 
   async function handleSignOut() {
     await supabase.auth.signOut()
+    navigate('/login', { replace: true })
   }
 
   return (

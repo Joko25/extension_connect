@@ -114,7 +114,7 @@ export default function Threads() {
         {/* Info */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
           <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-          <p className="text-blue-100/70 text-xs leading-relaxed">
+          <p className="text-blue-600 text-xs leading-relaxed">
             Jaga sopan santun dan hindari menyebarkan informasi pribadi atau hoaks. Postingan dapat dihapus oleh pemiliknya.
           </p>
         </div>
@@ -225,6 +225,7 @@ export default function Threads() {
               <ThreadCard
                 key={thread.id}
                 thread={thread}
+                myProfileId={myProfileId}
                 isOwner={myProfileId === thread.author_id}
                 isDeleting={deleteThread.isPending && deleteThread.variables?.threadId === thread.id}
                 onDelete={handleDelete}
