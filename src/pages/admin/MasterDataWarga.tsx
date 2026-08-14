@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { Search, MoreHorizontal, Eye, Shield, Home, UserMinus, Loader2, ExternalLink, User, UserPlus, Users, Home as HomeIcon, CheckCircle2, Clock, MoveRight } from 'lucide-react'
+import { useState, useCallback, useRef } from 'react'
+import { Search, MoreHorizontal, Eye, Shield, Home, UserMinus, Loader2, ExternalLink, User, UserPlus, Users, Home as HomeIcon, CheckCircle2, Clock, MoveRight, FileText, X, ImagePlus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -213,7 +213,7 @@ function ModalUbahRole({
   onClose: () => void
 }) {
   const updateRole = useUpdateWargaRole()
-  const { register, handleSubmit, setValue, watch, reset } = useForm<{ role: Role }>({
+  const { handleSubmit, setValue, watch, reset } = useForm<{ role: Role }>({
     resolver: zodResolver(roleSchema),
     defaultValues: { role: warga?.role ?? 'warga' },
   })
@@ -351,7 +351,6 @@ function ModalEditRumah({
     },
   })
 
-  const statusTinggal = watch('status_tinggal')
 
   async function onSubmit(data: HouseFormData) {
     if (!warga) return
@@ -571,9 +570,11 @@ function ModalSetNonAktif({
 
 const addWargaSchema = z
   .object({
-    user_id: z.string().min(1, 'User ID akun wajib diisi'),
-    nama_lengkap: z.string().min(1, 'Nama lengkap wajib diisi'),
-    nik: z.string().min(10, 'NIK minimal 10 digit'),
+    email: z.string().email('Format email tidak valid'),
+    password: z.string().min(6, 'Password minimal 6 karakter'),
+    konfirmasi_password: z.string().min(6, 'Konfirmasi password wajib diisi'),
+    nama_lengkap: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
+    nik: z.string().regex(/^\d{16}$/, 'NIK harus 16 digit angka'),
     no_kk: z.string().min(1, 'Nomor KK wajib diisi'),
     no_hp: z.string().regex(/^08\d{8,12}$/, 'Format nomor HP tidak valid (08...)'),
     blok_rumah: z.string().min(1, 'Blok rumah wajib diisi'),
@@ -591,7 +592,77 @@ const addWargaSchema = z
       ctx.addIssue({ code: 'custom', path: ['no_rumah'], message: `Nomor rumah blok ${blok} berkisar ${r.min}-${r.max}` })
     }
   })
+  .refine((d) => d.password === d.konfirmasi_password, {
+    message: 'Password tidak sama',
+    path: ['konfirmasi_password'],
+  })
 type AddWargaFormData = z.infer<typeof addWargaSchema>
+
+// ─── Field unggah file (KTP / KK) — mengikuti form Daftar Warga ──────────────
+
+function FileField({
+  label,
+  icon,
+  file,
+  onChange,
+  inputId,
+}: {
+  label: string
+  icon: React.ReactNode
+  file: File | null
+  onChange: (f: File | null) => void
+  inputId: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className={`w-full border-2 border-dashed rounded-xl px-3 py-4 text-left transition-colors ${
+          file
+            ? 'border-emerald-300 bg-emerald-50'
+            : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'
+        }`}
+      >
+        {file ? (
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
+              <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(0)} KB</p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(null); if (inputRef.current) inputRef.current.value = '' }}
+              className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50"
+              aria-label={`Hapus ${label}`}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-blue-500">{icon}</span>
+            <div>
+              <p className="text-sm font-medium text-slate-700">{label}</p>
+              <p className="text-xs text-slate-400">Ketuk untuk unggah</p>
+            </div>
+          </div>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        id={inputId}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
+    </div>
+  )
+}
 
 function ModalTambahWarga({
   open,
@@ -601,6 +672,9 @@ function ModalTambahWarga({
   onClose: () => void
 }) {
   const addWarga = useAddWargaManual()
+  const [ktpFile, setKtpFile] = useState<File | null>(null)
+  const [kkFile, setKkFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } =
     useForm<AddWargaFormData>({
       resolver: zodResolver(addWargaSchema),
@@ -608,11 +682,30 @@ function ModalTambahWarga({
     })
 
   const statusTinggal = watch('status_tinggal')
+  const blokRumah = watch('blok_rumah')
+  const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
+
+  function validateFile(file: File | null): string | null {
+    if (!file) return null
+    if (file.size > MAX_FILE_SIZE) return 'Ukuran file maksimal 5 MB'
+    if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(file.type)) {
+      return 'Format harus JPG, PNG, atau PDF'
+    }
+    return null
+  }
 
   async function onSubmit(data: AddWargaFormData) {
+    setFileError(null)
+    const ktpErr = validateFile(ktpFile)
+    const kkErr = validateFile(kkFile)
+    if (ktpErr || kkErr) {
+      setFileError(ktpErr || kkErr)
+      return
+    }
     try {
       await addWarga.mutateAsync({
-        user_id: data.user_id,
+        email: data.email,
+        password: data.password,
         nama_lengkap: data.nama_lengkap,
         nik: data.nik,
         no_kk: data.no_kk,
@@ -620,6 +713,8 @@ function ModalTambahWarga({
         blokRumah: data.blok_rumah.toUpperCase(),
         noRumah: data.no_rumah,
         statusTinggal: data.status_tinggal,
+        ktpFile,
+        kkFile,
       })
       toast({
         title: 'Warga berhasil disimpan',
@@ -627,6 +722,9 @@ function ModalTambahWarga({
       })
       onClose()
       reset()
+      setKtpFile(null)
+      setKkFile(null)
+      setFileError(null)
     } catch (err) {
       toast({
         title: 'Gagal menambahkan warga',
@@ -637,8 +735,8 @@ function ModalTambahWarga({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); reset() } }}>
-      <DialogContent className="bg-white border-slate-200 text-slate-900 max-w-lg">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); reset(); setKtpFile(null); setKkFile(null); setFileError(null) } }}>
+      <DialogContent className="bg-white border-slate-200 text-slate-900 max-w-lg w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto top-4 bottom-4 left-4 right-4 translate-x-0 translate-y-0 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
         <DialogHeader>
           <DialogTitle className="text-slate-900">Tambah Warga Manual</DialogTitle>
           <DialogDescription className="text-slate-500">
@@ -646,103 +744,178 @@ function ModalTambahWarga({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label className="text-slate-800">User ID Akun</Label>
-            <Input
-              {...register('user_id')}
-              placeholder="UUID dari akun yang sudah terdaftar"
-              className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
-            />
-            {errors.user_id && <p className="text-red-600 text-xs">{errors.user_id.message}</p>}
-            <p className="text-slate-400 text-[11px]">
-              Warga harus sudah memiliki akun login terlebih dahulu.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-slate-800">Nama Lengkap</Label>
-            <Input
-              {...register('nama_lengkap')}
-              placeholder="Nama sesuai KTP"
-              className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
-            />
-            {errors.nama_lengkap && <p className="text-red-600 text-xs">{errors.nama_lengkap.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label className="text-slate-800">NIK</Label>
-              <Input
-                {...register('nik')}
-                placeholder="16 digit"
-                className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
-              />
-              {errors.nik && <p className="text-red-600 text-xs">{errors.nik.message}</p>}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 py-2">
+          {/* Data Diri */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Data Diri</h3>
+              <p className="text-slate-500 text-xs mt-0.5">Lengkapi data sesuai KTP. Akun dibuat otomatis.</p>
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-800">No. KK</Label>
+              <Label className="text-slate-800">Nama Lengkap</Label>
               <Input
-                {...register('no_kk')}
-                placeholder="Nomor Kartu Keluarga"
-                className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
-              />
-              {errors.no_kk && <p className="text-red-600 text-xs">{errors.no_kk.message}</p>}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-slate-800">No. HP</Label>
-            <Input
-              {...register('no_hp')}
-              inputMode="tel"
-              placeholder="08xxxxxxxxxx"
-              className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
-            />
-            {errors.no_hp && <p className="text-red-600 text-xs">{errors.no_hp.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label className="text-slate-800">Blok Rumah</Label>
-              <Select
-                value={watch('blok_rumah')?.toUpperCase() || ''}
-                onValueChange={(v) => setValue('blok_rumah', v, { shouldValidate: true })}
-              >
-                <SelectTrigger className="bg-slate-100 border-slate-300 text-slate-900">
-                  <SelectValue placeholder="Pilih blok" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200">
-                  {BLOK_RUMAH_LIST.map((b) => (
-                    <SelectItem key={b} value={b} className="text-slate-900 focus:bg-slate-100">{b}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.blok_rumah && <p className="text-red-600 text-xs">{errors.blok_rumah.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label className="text-slate-800">No. Rumah</Label>
-              <Input
-                {...register('no_rumah')}
-                placeholder="01"
+                {...register('nama_lengkap')}
+                placeholder="Nama sesuai KTP"
                 className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
               />
-              {errors.no_rumah && <p className="text-red-600 text-xs">{errors.no_rumah.message}</p>}
+              {errors.nama_lengkap && <p className="text-red-600 text-xs">{errors.nama_lengkap.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-slate-800">NIK</Label>
+                <Input
+                  {...register('nik')}
+                  inputMode="numeric"
+                  placeholder="16 digit"
+                  className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
+                />
+                {errors.nik && <p className="text-red-600 text-xs">{errors.nik.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-800">No. KK</Label>
+                <Input
+                  {...register('no_kk')}
+                  placeholder="Nomor Kartu Keluarga"
+                  className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
+                />
+                {errors.no_kk && <p className="text-red-600 text-xs">{errors.no_kk.message}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-800">No. HP</Label>
+              <Input
+                {...register('no_hp')}
+                inputMode="tel"
+                placeholder="08xxxxxxxxxx"
+                className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
+              />
+              {errors.no_hp && <p className="text-red-600 text-xs">{errors.no_hp.message}</p>}
+            </div>
+          </div>
+
+          {/* Akun Login (otomatis) */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Akun Login</h3>
+              <p className="text-slate-500 text-xs mt-0.5">
+                UUID akun dibuat otomatis. Warga masuk menggunakan email & password ini.
+              </p>
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-800">Status Tinggal</Label>
-              <Select
-                value={statusTinggal}
-                onValueChange={(v) => setValue('status_tinggal', v as 'tetap' | 'kontrak')}
-              >
-                <SelectTrigger className="bg-slate-100 border-slate-300 text-slate-900">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200">
-                  <SelectItem value="tetap" className="text-slate-900 focus:bg-slate-100">Tetap</SelectItem>
-                  <SelectItem value="kontrak" className="text-slate-900 focus:bg-slate-100">Kontrak</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-slate-800">Email</Label>
+              <Input
+                type="email"
+                placeholder="contoh@email.com"
+                autoComplete="email"
+                className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
+                {...register('email')}
+              />
+              {errors.email && <p className="text-red-600 text-xs">{errors.email.message}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-slate-800">Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Min. 6 karakter"
+                  autoComplete="new-password"
+                  className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
+                  {...register('password')}
+                />
+                {errors.password && <p className="text-red-600 text-xs">{errors.password.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-800">Ulangi Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Ulangi"
+                  autoComplete="new-password"
+                  className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
+                  {...register('konfirmasi_password')}
+                />
+                {errors.konfirmasi_password && <p className="text-red-600 text-xs">{errors.konfirmasi_password.message}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Dokumen Identitas */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Dokumen Identitas (Opsional)</h3>
+              <p className="text-slate-500 text-xs mt-0.5">
+                Foto/scan KTP & KK (JPG, PNG, atau PDF, maks. 5 MB).
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FileField
+                label="KTP"
+                icon={<FileText className="w-4 h-4" />}
+                file={ktpFile}
+                onChange={setKtpFile}
+                inputId="ktp-manual"
+              />
+              <FileField
+                label="Kartu Keluarga"
+                icon={<ImagePlus className="w-4 h-4" />}
+                file={kkFile}
+                onChange={setKkFile}
+                inputId="kk-manual"
+              />
+            </div>
+            {fileError && <p className="text-red-600 text-xs">{fileError}</p>}
+          </div>
+
+          {/* Data Rumah */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Data Rumah</h3>
+              <p className="text-slate-500 text-xs mt-0.5">Blok dan nomor rumah tempat tinggal warga.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label className="text-slate-800">Blok</Label>
+                <Select
+                  value={blokRumah?.toUpperCase() || ''}
+                  onValueChange={(v) => setValue('blok_rumah', v, { shouldValidate: true })}
+                >
+                  <SelectTrigger className="bg-slate-100 border-slate-300 text-slate-900">
+                    <SelectValue placeholder="Pilih blok" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-slate-200">
+                    {BLOK_RUMAH_LIST.map((b) => (
+                      <SelectItem key={b} value={b} className="text-slate-900 focus:bg-slate-100">{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.blok_rumah && <p className="text-red-600 text-xs">{errors.blok_rumah.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-800">No. Rumah</Label>
+                <Input
+                  {...register('no_rumah')}
+                  inputMode="numeric"
+                  placeholder={blokRumah ? `1-${BLOK_RUMAH_RANGE[blokRumah.toUpperCase() as BlokRumah]?.max ?? 38}` : '01'}
+                  className="bg-slate-100 border-slate-300 text-slate-900 placeholder:text-slate-400"
+                />
+                {errors.no_rumah && <p className="text-red-600 text-xs">{errors.no_rumah.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-800">Status Tinggal</Label>
+                <Select
+                  value={statusTinggal}
+                  onValueChange={(v) => setValue('status_tinggal', v as 'tetap' | 'kontrak')}
+                >
+                  <SelectTrigger className="bg-slate-100 border-slate-300 text-slate-900">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-slate-200">
+                    <SelectItem value="tetap" className="text-slate-900 focus:bg-slate-100">Tetap</SelectItem>
+                    <SelectItem value="kontrak" className="text-slate-900 focus:bg-slate-100">Kontrak</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -750,7 +923,7 @@ function ModalTambahWarga({
             <Button
               type="button"
               variant="outline"
-              onClick={() => { onClose(); reset() }}
+              onClick={() => { onClose(); reset(); setKtpFile(null); setKkFile(null); setFileError(null) }}
               className="border-slate-300 text-slate-700 hover:bg-slate-100"
               disabled={addWarga.isPending}
             >
@@ -806,23 +979,23 @@ export default function MasterDataWarga() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
                 <User className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Master Data Warga</h1>
-                <p className="text-slate-500 text-sm">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900">Master Data Warga</h1>
+                <p className="text-slate-500 text-xs sm:text-sm">
                   Kelola data warga aktif di lingkungan RT
                 </p>
               </div>
             </div>
             <Button
               onClick={() => setTambahOpen(true)}
-              className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25"
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Tambah Warga Manual

@@ -35,6 +35,14 @@ export interface RejectIuranPayload {
   catatan?: string
 }
 
+export interface AddManualIuranPayload {
+  profileId: string        // warga yang membayar
+  namaWarga: string
+  bulanTahun: string       // format: YYYY-MM
+  nominal: number
+  reviewerProfileId: string // created_by untuk cashflow
+}
+
 // ─── Hooks ───────────────────────────────────────────────────────────────────
 
 /**
@@ -263,6 +271,56 @@ export function useRejectIuran() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: iuranKeys.all })
+    },
+  })
+}
+
+/**
+ * Input kas iuran manual oleh bendahara/ketua_rt.
+ * Membuat kontribusi langsung approved + mencatat cashflow masuk.
+ * Digunakan saat warga membayar tunai/di luar aplikasi.
+ */
+export function useAddManualIuran() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      profileId,
+      namaWarga,
+      bulanTahun,
+      nominal,
+      reviewerProfileId,
+    }: AddManualIuranPayload) => {
+      // 1. Insert contribution dengan status approved
+      const { error: insertError } = await supabase.from('contributions').insert({
+        profile_id: profileId,
+        bulan_tahun: bulanTahun,
+        nominal,
+        status_pembayaran: 'approved' as StatusPembayaran,
+        reviewed_by: reviewerProfileId,
+      })
+
+      if (insertError) throw new Error(`Gagal menyimpan iuran: ${insertError.message}`)
+
+      // 2. Catat cashflow masuk
+      const [year, month] = bulanTahun.split('-')
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+      const monthLabel = monthNames[parseInt(month, 10) - 1]
+
+      const { error: cashflowError } = await supabase
+        .from('cashflows')
+        .insert({
+          tipe: 'masuk',
+          nominal,
+          keterangan: `Iuran ${monthLabel} ${year} — ${namaWarga}`,
+          tanggal: new Date().toISOString().split('T')[0],
+          created_by: reviewerProfileId,
+        })
+
+      if (cashflowError) throw new Error(`Cashflow gagal: ${cashflowError.message}`)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: iuranKeys.all })
+      qc.invalidateQueries({ queryKey: ['cashflow'] })
     },
   })
 }

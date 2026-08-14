@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Wallet, TrendingUp, TrendingDown, ArrowLeft, PlusCircle, Calendar,
+  Wallet, TrendingUp, TrendingDown, ArrowLeft, PlusCircle,
   FileSpreadsheet, Loader2, ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
 import {
@@ -169,14 +169,14 @@ export default function CashflowPublic() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <Link to="/dashboard" className="text-slate-500 hover:text-slate-900 transition-colors">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-xl font-bold text-slate-900">Transparansi Cashflow Kas RT</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900">Transparansi Cashflow Kas RT</h1>
             </div>
             <p className="text-slate-500 text-sm ml-8">
               Laporan pemasukan & pengeluaran kas lingkungan secara terbuka
@@ -185,7 +185,7 @@ export default function CashflowPublic() {
           {canManage && (
             <Button
               onClick={() => setIsModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-lg shadow-blue-500/25"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-lg shadow-blue-500/25"
             >
               <PlusCircle className="w-4 h-4 mr-2" />
               Tambah Transaksi
@@ -366,7 +366,7 @@ export default function CashflowPublic() {
 
       <CreateCashflowModal
         open={isModalOpen}
-        onClose={() => setIsModalOpen(null as any || false)}
+        onClose={() => setIsModalOpen(false)}
       />
     </div>
   )

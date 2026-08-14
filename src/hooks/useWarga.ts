@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Profile, House, Role, StatusWarga } from '@/types/database.types'
+import type { Profile, House, Role, StatusWarga, HouseWithProfile } from '@/types/database.types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -204,6 +204,40 @@ export function useBlokRumahList() {
   })
 }
 
+/**
+ * Fetch SEMUA rumah (blok + no_rumah) bersama penghuninya,
+ * diurutkan berdasarkan blok lalu nomor rumah.
+ */
+export function useHousesAll() {
+  return useQuery({
+    queryKey: ['houses', 'all'],
+    queryFn: async (): Promise<HouseWithProfile[]> => {
+      const { data, error } = await supabase
+        .from('houses')
+        .select(`
+          *,
+          profile:profiles!houses_profile_id_fkey (
+            id,
+            nama_lengkap
+          )
+        `)
+        .order('blok_rumah', { ascending: true })
+
+      if (error) throw new Error(error.message)
+      return ((data ?? []) as HouseWithProfile[])
+        .map((h) => ({
+          ...h,
+          profile: (Array.isArray(h.profile) ? h.profile[0] : h.profile) ?? null,
+        }))
+        .sort((a, b) => {
+          if (a.blok_rumah !== b.blok_rumah) return a.blok_rumah.localeCompare(b.blok_rumah)
+          return (Number(a.no_rumah) || 0) - (Number(b.no_rumah) || 0)
+        })
+    },
+    staleTime: 1000 * 30,
+  })
+}
+
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
 /**
@@ -348,7 +382,8 @@ export function useUpdateProfile() {
 }
 
 export interface AddWargaManualPayload {
-  user_id: string
+  email: string
+  password: string
   nama_lengkap: string
   nik: string
   no_kk: string
@@ -356,66 +391,43 @@ export interface AddWargaManualPayload {
   blokRumah: string
   noRumah: string
   statusTinggal: 'tetap' | 'kontrak'
+  ktpFile?: File | null
+  kkFile?: File | null
 }
 
 /**
  * Tambah warga manual oleh admin (sekretaris/ketua_rt).
- * Upsert profil + menautkan ke rumah berdasarkan blok/no.
- * Jika user_id sudah punya profil (mis. dari trigger registrasi),
- * profil tsb di-update (nama/nik/no_kk → aktif) alih-alih insert duplikat.
- * Catatan: user_id harus merujuk akun auth yang sudah terdaftar.
+ * Akun & profil dibuat otomatis (UUID di-generate server) via
+ * edge function `create-warga`, lalu rumah ditautkan & dokumen diunggah.
  */
 export function useAddWargaManual() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: AddWargaManualPayload) => {
-      // 1. Cek apakah profil sudah ada untuk user_id ini
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', payload.user_id)
-        .maybeSingle()
+      // 1. Buat akun + profil otomatis via edge function
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
-      let profileId: string
+      const { data: created, error: fnError } = await supabase.functions.invoke('create-warga', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: {
+          email: payload.email,
+          password: payload.password,
+          nama_lengkap: payload.nama_lengkap,
+          nik: payload.nik,
+          no_kk: payload.no_kk,
+          no_hp: payload.no_hp ?? '',
+        },
+      })
 
-      if (existingProfile) {
-        // Update profil yang sudah ada (pending → aktif) + lengkapi data
-        const { data, error } = await supabase
-          .from('profiles')
-          .update({
-            nama_lengkap: payload.nama_lengkap,
-            nik: payload.nik,
-            no_kk: payload.no_kk,
-            no_hp: payload.no_hp ?? null,
-            status_warga: 'aktif',
-          })
-          .eq('id', existingProfile.id)
-          .select('id')
-          .single()
+      if (fnError) throw new Error(fnError.message)
+      if (!created?.profileId) throw new Error('Gagal membuat akun warga')
 
-        if (error) throw new Error(error.message)
-        profileId = data.id
-      } else {
-        // Insert profil baru
-        const { data, error } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: payload.user_id,
-            nama_lengkap: payload.nama_lengkap,
-            nik: payload.nik,
-            no_kk: payload.no_kk,
-            no_hp: payload.no_hp ?? null,
-            role: 'warga',
-            status_warga: 'aktif',
-          })
-          .select('id')
-          .single()
+      const profileId = created.profileId as string
+      const userId = created.userId as string
 
-        if (error) throw new Error(error.message)
-        profileId = data.id
-      }
-
-      // 2. Cari rumah berdasarkan blok + no
+      // 2. Tautkan rumah berdasarkan blok + no
       const { data: existing } = await supabase
         .from('houses')
         .select('id')
@@ -442,6 +454,29 @@ export function useAddWargaManual() {
         })
 
         if (error) throw new Error(error.message)
+      }
+
+      // 3. Upload dokumen KTP & KK (opsional) ke folder user_id warga
+      const uploadDoc = async (file: File, type: 'ktp' | 'kk') => {
+        const ext = file.name.split('.').pop()
+        const path = `${userId}/${type}-${Date.now()}.${ext}`
+        const { error } = await supabase.storage
+          .from('ktp-kk-docs')
+          .upload(path, file, { upsert: false })
+        if (error) throw new Error(`Gagal mengunggah ${type === 'ktp' ? 'KTP' : 'KK'}: ${error.message}`)
+        return path
+      }
+
+      const ktpPath = payload.ktpFile ? await uploadDoc(payload.ktpFile, 'ktp') : ''
+      const kkPath = payload.kkFile ? await uploadDoc(payload.kkFile, 'kk') : ''
+
+      if (ktpPath || kkPath) {
+        const { error: docsError } = await supabase.rpc('set_warga_docs', {
+          p_profile_id: profileId,
+          p_ktp_path: ktpPath,
+          p_kk_path: kkPath,
+        })
+        if (docsError) throw new Error(`Gagal menyimpan dokumen: ${docsError.message}`)
       }
     },
     onSuccess: () => {

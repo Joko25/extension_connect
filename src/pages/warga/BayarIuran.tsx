@@ -140,21 +140,21 @@ export default function BayarIuran() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <Link to="/dashboard" className="text-slate-500 hover:text-slate-900 transition-colors">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-xl font-bold text-slate-900">Pembayaran Iuran Bulanan</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900">Pembayaran Iuran Bulanan</h1>
             </div>
             <p className="text-slate-500 text-sm ml-8">
               Upload bukti transfer iuran kebersihan & keamanan RT
             </p>
           </div>
           <Link to="/cashflow">
-            <Button variant="outline" className="border-slate-200 text-slate-800 hover:bg-slate-50 text-sm">
+            <Button variant="outline" className="w-full sm:w-auto border-slate-200 text-slate-800 hover:bg-slate-50 text-sm">
               <FileText className="w-4 h-4 mr-2 text-blue-600" />
               Laporan Cashflow
             </Button>

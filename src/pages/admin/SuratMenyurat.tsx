@@ -191,25 +191,25 @@ export default function SuratMenyurat() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
               <FileText className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">CMS Surat Menyurat</h1>
-              <p className="text-slate-500 text-sm">Kelola dan proses permohonan surat dari warga</p>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900">CMS Surat Menyurat</h1>
+              <p className="text-slate-500 text-xs sm:text-sm">Kelola dan proses permohonan surat dari warga</p>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-5 border-b border-slate-200">
+          <div className="flex gap-1 mt-5 overflow-x-auto border-b border-slate-200">
             {TABS.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${tab === t.key ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === t.key ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 {t.label} ({count(t.key)})
               </button>

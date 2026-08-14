@@ -5,7 +5,7 @@ import {
   Wallet, FileText, MessageSquare, Cctv, UserRound, BadgeCheck, Landmark,
   Users, UserCheck, Megaphone, ChevronRight, Settings, Sparkles,
 } from 'lucide-react'
-import { useAuth, hasRole } from '@/context/AuthContext'
+import { useAuth } from '@/context/AuthContext'
 import { useThreads } from '@/hooks/useThreads'
 import { usePublicPerumahan } from '@/hooks/useSettings'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'

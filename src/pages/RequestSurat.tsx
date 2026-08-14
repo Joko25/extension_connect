@@ -104,20 +104,20 @@ export default function RequestSurat() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
               <FileText className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Request Surat</h1>
-              <p className="text-slate-500 text-sm">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900">Request Surat</h1>
+              <p className="text-slate-500 text-xs sm:text-sm">
                 Ajukan permohonan surat keterangan dan pantau statusnya
               </p>
             </div>
           </div>
-          <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white">
+          <Button onClick={() => setOpen(true)} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white">
             <Plus className="w-4 h-4 mr-2" />
             Ajukan Surat
           </Button>

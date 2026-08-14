@@ -147,20 +147,20 @@ export default function VerifikasiWarga() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
               <ShieldCheck className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Verifikasi Warga Baru</h1>
-              <p className="text-slate-500 text-sm">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900">Verifikasi Warga Baru</h1>
+              <p className="text-slate-500 text-xs sm:text-sm">
                 Setujui atau tolak pendaftaran warga yang baru masuk
               </p>
             </div>
           </div>
-          <Badge className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 text-xs">
+          <Badge className="w-fit bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 text-xs">
             <Clock className="w-3.5 h-3.5 mr-1" />
             {pendingCount} menunggu
           </Badge>

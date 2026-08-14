@@ -20,7 +20,7 @@ type LoginFormData = z.infer<typeof loginSchema>
 export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { signInWithEmail, profile } = useAuth()
+  const { signInWithEmail } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
   const { data: perumahan } = usePublicPerumahan()

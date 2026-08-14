@@ -164,7 +164,7 @@ export default function BuatPengumuman() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5">
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-1">
             <Link to="/dashboard" className="text-slate-500 hover:text-slate-900 transition-colors">
@@ -173,7 +173,7 @@ export default function BuatPengumuman() {
             <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
               <Megaphone className="w-4 h-4 text-purple-600" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Buat Pengumuman</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900">Buat Pengumuman</h1>
           </div>
           <p className="text-slate-500 text-sm ml-11">
             Buat pengumuman & generate flyer otomatis dengan AI untuk warga RT

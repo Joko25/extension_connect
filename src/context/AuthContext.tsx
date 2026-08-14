@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   // Fetch profile dari Supabase
+  // Jika terjadi error (mis. 500), langsung logout untuk keamanan.
   async function fetchProfile(userId: string) {
     const { data, error } = await supabase
       .from('profiles')
@@ -44,6 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single()
     if (error) {
       console.error('Error fetching profile:', error)
+      await supabase.auth.signOut()
+      setSession(null)
+      setUser(null)
+      setProfile(null)
       return null
     }
     return data as Profile

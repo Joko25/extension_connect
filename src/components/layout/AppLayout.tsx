@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard,
@@ -15,10 +15,8 @@ import {
   Settings,
   Menu,
   X,
-  LogOut,
   Shield,
   Home,
-  UserRound,
   MessageSquare,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -74,7 +72,6 @@ const MENU_SECTIONS: MenuSection[] = [
       { to: '/cctv', label: 'Pantau CCTV', icon: <Cctv className="w-4 h-4" /> },
       { to: '/bayar-iuran', label: 'Bayar Iuran', icon: <BadgeCheck className="w-4 h-4" /> },
       { to: '/surat', label: 'Request Surat', icon: <FileText className="w-4 h-4" /> },
-      { to: '/profile', label: 'Profil Saya', icon: <UserRound className="w-4 h-4" /> },
       { to: '/threads', label: 'Thread Warga', icon: <MessageSquare className="w-4 h-4" /> },
     ],
   },
@@ -84,7 +81,6 @@ const MENU_SECTIONS: MenuSection[] = [
     items: [
       { to: '/bendahara/iuran', label: 'Review Pembayaran Iuran', icon: <BadgeCheck className="w-4 h-4" />, badgeKey: 'iuran' },
       { to: '/kas', label: 'Kelola Kas', icon: <Landmark className="w-4 h-4" /> },
-      { to: '/konfigurasi', label: 'Konfigurasi', icon: <Settings className="w-4 h-4" /> },
     ],
   },
   {
@@ -97,12 +93,15 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
   {
-    title: 'Komunikasi',
-    roles: ['humas', 'ketua_rt'],
+    title: 'Configuration',
+    roles: ['humas', 'ketua_rt', 'bendahara', 'sekretaris'],
     items: [
+      { to: '/konfigurasi', label: 'Konfigurasi', icon: <Settings className="w-4 h-4" /> },
       { to: '/humas/pengumuman', label: 'Kelola Pengumuman', icon: <Megaphone className="w-4 h-4" /> },
     ],
   },
+
+
 ]
 
 function canAccess(role: Role | undefined, roles?: Role[]): boolean {
@@ -287,7 +286,6 @@ function SidebarShell({
 export default function AppLayout() {
   const { profile } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const badges = useMenuBadgeCounts(profile?.role)
 
@@ -300,11 +298,6 @@ export default function AppLayout() {
   const currentLabel = MENU_SECTIONS.flatMap((s) => s.items).find(
     (item) => item.to === location.pathname
   )?.label
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    navigate('/login', { replace: true })
-  }
 
   const inisial = profile?.nama_lengkap
     ?.split(' ')
@@ -373,8 +366,8 @@ export default function AppLayout() {
               className="flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-slate-50"
               title="Buka profil"
             >
-              <Avatar className="w-9 h-9 border border-slate-200 bg-blue-600/30">
-                <AvatarFallback className="bg-blue-600/30 text-blue-200 text-xs font-bold">
+              <Avatar className="w-9 h-9 border border-slate-200 bg-blue-600 ">
+                <AvatarFallback className="bg-blue-600 text-white text-xs font-bold">
                   {inisial}
                 </AvatarFallback>
               </Avatar>
@@ -390,16 +383,6 @@ export default function AppLayout() {
                 </Badge>
               </div>
             </NavLink>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="bg-slate-50 border-slate-200 text-slate-700 hover:bg-red-500/15 hover:text-red-700 hover:border-red-500/40"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
           </div>
         </header>
 

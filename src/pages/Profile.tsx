@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useNavigate } from 'react-router-dom'
 import {
   Loader2, Save, User, Phone, Hash, IdCard, BadgeCheck, Shield, Clock,
-  UploadCloud, FileText, CheckCircle2, ExternalLink,
+  UploadCloud, FileText, CheckCircle2, ExternalLink, LogOut,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useUpdateProfile, useSignedUrl } from '@/hooks/useWarga'
@@ -223,6 +224,12 @@ function IdentityDocsSection({
 export default function Profile() {
   const { profile, refreshProfile } = useAuth()
   const updateProfile = useUpdateProfile()
+  const navigate = useNavigate()
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    navigate('/login', { replace: true })
+  }
 
   const {
     register,
@@ -289,8 +296,8 @@ export default function Profile() {
         {/* Kartu identitas */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16 border border-slate-200 bg-blue-600/30">
-              <AvatarFallback className="bg-blue-600/30 text-blue-200 text-xl font-bold">
+            <Avatar className="w-16 h-16 border border-slate-200 bg-blue-600">
+              <AvatarFallback className="bg-blue-600 text-blue-200 text-xl font-bold">
                 {inisial}
               </AvatarFallback>
             </Avatar>
@@ -455,6 +462,18 @@ export default function Profile() {
           kkUrl={me.kk_url}
           onUpdated={refreshProfile}
         />
+
+        {/* Logout */}
+        <div className="pt-2">
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            className="w-full h-12 border-red-500/40 text-red-600 hover:bg-red-500/10 hover:border-red-500/60 hover:text-red-700"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Keluar / Logout
+          </Button>
+        </div>
       </div>
     </div>
   )
