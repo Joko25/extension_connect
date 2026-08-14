@@ -140,6 +140,16 @@ export default function Login() {
                 )}
               </div>
 
+              {/* Lupa password */}
+              <div className="flex justify-end -mt-2">
+                <Link
+                  to="/forgot-password"
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  Lupa password?
+                </Link>
+              </div>
+
               {/* Error umum */}
               {loginError && (
                 <div className="bg-red-500/15 border border-red-500/30 rounded-lg px-4 py-3">

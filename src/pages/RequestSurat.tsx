@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -68,11 +67,6 @@ export default function RequestSurat() {
   const [open, setOpen] = useState(false)
   const { data: letters = [], isLoading } = useMyLetters(profile?.id)
   const createLetter = useCreateLetter()
-
-  // Admin (sekretaris/ketua_rt) melihat CMS surat menyurat, bukan halaman warga
-  if (profile && (profile.role === 'sekretaris' || profile.role === 'ketua_rt')) {
-    return <Navigate to="/admin/surat" replace />
-  }
 
   const {
     register,

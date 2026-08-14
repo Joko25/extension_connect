@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from '@/pages/Login'
 import Daftar from '@/pages/Daftar'
+import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
 import StatusPage from '@/pages/StatusPage'
 import Dashboard from '@/pages/Dashboard'
 import CashflowWarga from '@/pages/CashflowWarga'
@@ -43,6 +45,8 @@ export default function AppRoutes() {
       {/* ─── Public routes ─── */}
       <Route path="/login" element={<Login />} />
       <Route path="/daftar" element={<Daftar />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/pending-approval" element={<StatusPage type="pending" />} />
       <Route path="/rejected" element={<StatusPage type="ditolak" />} />
       <Route path="/pindah" element={<StatusPage type="pindah" />} />
