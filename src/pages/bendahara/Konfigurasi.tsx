@@ -5,6 +5,7 @@ import {
 } from '@/hooks/useSettings'
 import { useAuth, hasRole } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { formatRupiahInput, parseRupiahInput } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -285,10 +286,9 @@ export default function Konfigurasi() {
                 <div className="relative">
                   <Wallet className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <Input
-                    type="number"
-                    min="0"
-                    value={saldoAwal}
-                    onChange={(e) => setSaldoAwal(e.target.value)}
+                    inputMode="numeric"
+                    value={formatRupiahInput(saldoAwal)}
+                    onChange={(e) => setSaldoAwal(parseRupiahInput(e.target.value))}
                     placeholder="Contoh: 1500000"
                     className="bg-slate-100 border-slate-300 text-slate-900 font-semibold pl-9"
                   />

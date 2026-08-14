@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useWargaList } from '@/hooks/useWarga'
 import { useAddManualIuran } from '@/hooks/useIuran'
 import { useCashflowList, useCashflowSummary } from '@/hooks/useCashflow'
+import { formatRupiahInput, parseRupiahInput } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -245,10 +246,9 @@ export default function KelolaKas() {
             <div className="space-y-2 md:col-span-2">
               <Label className="text-slate-800 text-xs">Nominal Iuran (Rp)</Label>
               <Input
-                type="number"
-                min="0"
-                value={nominal}
-                onChange={(e) => setNominal(e.target.value)}
+                inputMode="numeric"
+                value={formatRupiahInput(nominal)}
+                onChange={(e) => setNominal(parseRupiahInput(e.target.value))}
                 placeholder="Contoh: 50000"
                 className="bg-slate-100 border-slate-300 text-slate-900 font-semibold"
               />

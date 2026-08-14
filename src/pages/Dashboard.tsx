@@ -89,7 +89,7 @@ export default function Dashboard() {
             <div className="min-w-0">
               <p className="text-blue-100 text-sm">{today}</p>
               <h1 className="text-2xl font-bold truncate">
-                Selamat datang, {profile?.nama_lengkap ?? 'Warga'}!
+                Hai, {profile?.nama_lengkap ?? 'Warga'}!
               </h1>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {perumahan?.nama && (

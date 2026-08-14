@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/hooks/useToast'
 import { Link } from 'react-router-dom'
+import { formatRupiahInput, parseRupiahInput } from '@/lib/utils'
 import type { StatusPembayaran } from '@/types/database.types'
 
 const MONTH_NAMES = [
@@ -228,9 +229,9 @@ export default function BayarIuran() {
             <div className="space-y-1.5">
               <Label className="text-slate-800 text-xs">Nominal Iuran (Rp)</Label>
               <Input
-                type="number"
-                value={nominal}
-                onChange={(e) => setNominal(e.target.value)}
+                inputMode="numeric"
+                value={formatRupiahInput(nominal)}
+                onChange={(e) => setNominal(parseRupiahInput(e.target.value))}
                 className="bg-slate-100 border-slate-300 text-slate-900 h-10 font-semibold"
                 placeholder="50000"
               />

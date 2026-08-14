@@ -169,9 +169,8 @@ export default function CashflowWarga() {
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-200 hover:bg-transparent">
-                  <TableHead className="text-slate-500 text-xs min-w-[70px]">Blok</TableHead>
-                  <TableHead className="text-slate-500 text-xs min-w-[90px]">No. Rumah</TableHead>
-                  <TableHead className="text-slate-500 text-xs min-w-[180px]">Warga</TableHead>
+                  <TableHead className="text-slate-500 text-xs min-w-[90px]">Blok Rumah</TableHead>
+                  <TableHead className="text-slate-500 text-xs min-w-[180px]">Nama Warga</TableHead>
                   {MONTHS.map((m) => (
                     <TableHead key={m} className="text-slate-500 text-xs text-center px-1 min-w-[44px]">
                       {m}
@@ -184,10 +183,10 @@ export default function CashflowWarga() {
                   Array.from({ length: 8 }).map((_, i) => (
                     <TableRow key={i} className="border-slate-100">
                       <TableCell>
-                        <Skeleton className="h-4 w-10 bg-slate-100" />
+                        <Skeleton className="h-4 w-12 bg-slate-100" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-4 w-12 bg-slate-100" />
+                        <Skeleton className="h-4 w-32 bg-slate-100" />
                       </TableCell>
                       <TableCell>
                         <Skeleton className="h-4 w-32 bg-slate-100" />
@@ -211,11 +210,10 @@ export default function CashflowWarga() {
                       const profileId = h.profile_id
                       return (
                         <TableRow key={h.id} className="border-slate-100 hover:bg-slate-50">
-                          <TableCell className="text-slate-500 text-sm">{h.blok_rumah}</TableCell>
-                          <TableCell className="text-slate-700 text-sm font-medium">
-                            {h.no_rumah}
+                          <TableCell className="text-slate-900 text-sm font-medium whitespace-nowrap">
+                            {h.blok_rumah} {h.no_rumah}
                           </TableCell>
-                          <TableCell className="text-slate-900 text-sm truncate max-w-[180px]">
+                          <TableCell className="text-slate-700 text-sm truncate max-w-[180px]">
                             {h.profile ? h.profile.nama_lengkap : <span className="text-slate-400">Kosong</span>}
                           </TableCell>
                           {MONTHS.map((_, j) => {

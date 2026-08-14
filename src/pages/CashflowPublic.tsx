@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { useAuth, hasRole } from '@/context/AuthContext'
 import { useCashflowList, useCashflowSummary, useCreateCashflow } from '@/hooks/useCashflow'
+import { formatRupiahInput, parseRupiahInput } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -105,9 +106,9 @@ function CreateCashflowModal({ open, onClose }: { open: boolean; onClose: () => 
           <div className="space-y-1.5">
             <Label className="text-slate-800 text-xs">Nominal (Rp)</Label>
             <Input
-              type="number"
-              value={nominal}
-              onChange={(e) => setNominal(e.target.value)}
+              inputMode="numeric"
+              value={formatRupiahInput(nominal)}
+              onChange={(e) => setNominal(parseRupiahInput(e.target.value))}
               placeholder="Contoh: 150000"
               className="bg-slate-100 border-slate-300 text-slate-900 font-semibold h-10"
             />
